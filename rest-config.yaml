@@ -1,0 +1,11 @@
+---
+rest:
+  hostname: localhost
+  port: 8090
+  allowed_origins:
+    - http://localhost:3000
+services:
+  - label: user
+    hostname: localhost
+    port: 12191
+    token: someuniqueauthstringtoconnecttouser
