@@ -117,5 +117,12 @@ func (c *Client) HandleRestRequest(request *proto.RestApiRequest) (*proto.RestAp
 	}
 
 	log.Infof("Handling REST request %s:%s for client %s", request.Method, request.Uri, c.Label)
-	return nil, nil
+
+	restResponse, err := c.client.NewRestRequest(context.Background(), request)
+	if err != nil {
+		log.Errorf("Handling REST request failed: %s", err.Error())
+		return nil, err
+	}
+
+	return restResponse, nil
 }

@@ -71,9 +71,7 @@ func (r *REST) HandleStatusRequest(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *REST) RegisterNewRoute(root, method, uri string, client *Client) error {
-	root = sanitizeRoot(root)
-	uri = sanitizeUri(uri)
-	fullUri := fmt.Sprintf("%s%s", root, uri)
+	fullUri := fmt.Sprintf("%s%s", sanitizeRoot(root), sanitizeUri(uri))
 
 	r.mux.MethodFunc(method, fullUri, func(w http.ResponseWriter, req *http.Request) {
 		var headers []*proto.RestHeader
@@ -119,8 +117,15 @@ func (r *REST) RegisterNewRoute(root, method, uri string, client *Client) error 
 			w.Header().Set(header.Key, header.Value)
 		}
 
-		_, _ = w.Write([]byte(response.Body))
+		if response.Code == 0 {
+			// Another service should return valid HTTP code
+			log.Warnf("Invalid response code for request: %s %s", method, uri)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
 		w.WriteHeader(int(response.Code))
+		_, _ = w.Write([]byte(response.Body))
 		return
 	})
 

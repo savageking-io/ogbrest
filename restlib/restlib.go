@@ -73,7 +73,7 @@ func (s *RestInterServiceServer) RegisterHandler(uri, method string, handler Res
 	if _, ok := s.handlers[requestDefinition]; ok {
 		return fmt.Errorf("handler for %s already registered", requestDefinition)
 	}
-	s.handlers[uri] = handler
+	s.handlers[requestDefinition] = handler
 	return nil
 }
 
@@ -95,6 +95,16 @@ func (s *RestInterServiceServer) UnregisterHandler(uri, method string) error {
 func (s *RestInterServiceServer) UnregisterAllHandlers() error {
 	s.handlers = make(map[string]RestRequestHandler)
 	return nil
+}
+
+func (s *RestInterServiceServer) GetRegisteredHandlerKeys() []string {
+	keys := make([]string, len(s.handlers))
+	i := 0
+	for k := range s.handlers {
+		keys[i] = k
+		i++
+	}
+	return keys
 }
 
 func (s *RestInterServiceServer) AuthInterService(ctx context.Context, in *restproto.AuthenticateServiceRequest) (*restproto.AuthenticateServiceResponse, error) {
@@ -146,7 +156,7 @@ func (s *RestInterServiceServer) NewRestRequest(ctx context.Context, in *restpro
 		return nil, fmt.Errorf("token is not set")
 	}
 	if !s.isAuthenticated {
-		return nil, nil
+		return nil, fmt.Errorf("not authenticated")
 	}
 
 	requestDefinition := fmt.Sprintf("%s:%s", in.Method, in.Uri)
@@ -154,7 +164,7 @@ func (s *RestInterServiceServer) NewRestRequest(ctx context.Context, in *restpro
 	if !ok {
 		return &restproto.RestApiResponse{
 			Code: 404,
-		}, nil
+		}, fmt.Errorf("handler for %s is not registered", requestDefinition)
 	}
 	return handler(ctx, in)
 }
