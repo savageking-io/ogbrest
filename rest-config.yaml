@@ -7,5 +7,5 @@ rest:
 services:
   - label: user
     hostname: localhost
-    port: 12191
-    token: someuniqueauthstringtoconnecttouser
+    port: 12121
+    token: "random-token-for-user-service"

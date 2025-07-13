@@ -1,112 +1,121 @@
 package main
 
-/*
 import (
+	"context"
 	"fmt"
-	restpb "github.com/savageking-io/onlinegamebase/rest/proto"
-	userpb "github.com/savageking-io/onlinegamebase/user/proto"
+	"github.com/savageking-io/ogbrest/proto"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-// UserClient represents a gRPC client for the user service
-type UserClient struct {
-	serviceConfig ServiceConfig
-	client        userpb.UserServiceClient
-	conn          *grpc.ClientConn
+type RegisterNewRouteHandler func(root, method, uri string, client *Client) error
+
+type Client struct {
+	Label                   string
+	Host                    string
+	Port                    uint16
+	Token                   string
+	conn                    *grpc.ClientConn
+	client                  proto.RestInterServiceClient
+	registerNewRouteHandler RegisterNewRouteHandler
 }
 
-// NewUserClient creates a new UserClient
-func NewUserClient(config ServiceConfig) *UserClient {
-	return &UserClient{
-		serviceConfig: config,
+func (c *Client) Init(config *ServiceConfig, routeRegistrationHandler RegisterNewRouteHandler) error {
+	if config == nil {
+		return fmt.Errorf("no service configuration provided")
 	}
+	log.Infof("Initializing client %s", config.Label)
+	c.Label = config.Label
+	c.Host = config.Hostname
+	c.Port = config.Port
+	c.Token = config.Token
+	c.registerNewRouteHandler = routeRegistrationHandler
+	return nil
 }
 
-// Connect establishes a connection to the user service
-func (c *UserClient) Connect() error {
-	address := fmt.Sprintf("%s:%d", c.serviceConfig.Hostname, c.serviceConfig.Port)
-	log.Infof("Connecting to user service at %s", address)
-
-	opts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	}
-
+func (c *Client) Start() error {
 	var err error
-	c.conn, err = grpc.NewClient(fmt.Sprintf("%s:%d", c.serviceConfig.Hostname, c.serviceConfig.Port), opts...)
-	if err != nil {
-		log.Errorf("Failed to create gRPC client: %v", err)
-		return err
-	}
-
-	log.Info("Connected to user service")
-	return nil
-}
-
-// Close closes the connection to the user service
-func (c *UserClient) Close() error {
-	if c.conn != nil {
-		return c.conn.Close()
-	}
-	return nil
-}
-
-// Authenticate performs token-based authentication with the user service
-func (c *UserClient) Authenticate() error {
-	log.Debugf("Authenticating with user service using token: %s", c.serviceConfig.Token)
-
-	// In a real implementation, we would make a gRPC call to the AuthService method
-	// For now, we'll just simulate a successful authentication
-	log.Info("Successfully authenticated with user service")
-	return nil
-}
-
-// GetEndpoints requests the list of endpoints from the user service
-func (c *UserClient) GetEndpoints() (*restpb.RestDataResponse, error) {
-	log.Debugf("Requesting endpoints from user service with version: %s", AppVersion)
-
-	// In a real implementation, we would make a gRPC call to the RequestRESTData method
-	// For now, we'll just simulate a response with some sample endpoints
-	endpoints := []*restpb.RestEndpoint{
-		{
-			Path:   "/api/users",
-			Method: "GET",
-		},
-		{
-			Path:   "/api/users/{id}",
-			Method: "GET",
-		},
-		{
-			Path:   "/api/users",
-			Method: "POST",
-		},
-	}
-
-	resp := &restpb.RestDataResponse{
-		Code:         200,
-		EndpointsNum: int32(len(endpoints)),
-		Root:         "/api",
-		Endpoints:    endpoints,
-	}
-
-	log.Infof("Received %d endpoints from user service", resp.EndpointsNum)
-	return resp, nil
-}
-
-// ConnectAndAuthenticate connects to the user service and authenticates
-func (c *UserClient) ConnectAndAuthenticate() error {
-	err := c.Connect()
+	c.conn, err = grpc.NewClient(fmt.Sprintf("%s:%d", c.Host, c.Port), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
 	}
 
-	err = c.Authenticate()
-	if err != nil {
-		c.Close()
-		return err
+	if c.authenticate() != nil {
+		return fmt.Errorf("authentication failed")
+	}
+
+	if c.requestRestData() != nil {
+		return fmt.Errorf("requesting REST data failed")
 	}
 
 	return nil
 }
-*/
+
+func (c *Client) authenticate() error {
+	if c.conn == nil {
+		return fmt.Errorf("connection is not initialized")
+	}
+	c.client = proto.NewRestInterServiceClient(c.conn)
+
+	log.Infof("Authenticating client %s", c.Label)
+
+	authRequest := &proto.AuthenticateServiceRequest{
+		Token: c.Token,
+	}
+	authResponse, err := c.client.AuthInterService(context.Background(), authRequest)
+	if err != nil {
+		log.Errorf("Authentication failed: %s", err.Error())
+		return err
+	}
+	if authResponse.Code != 0 {
+		log.Errorf("Authentication failed with code %d: %s", authResponse.Code, authResponse.Error)
+		return fmt.Errorf("authentication failed")
+	}
+	return nil
+}
+
+func (c *Client) requestRestData() error {
+	if c.conn == nil {
+		return fmt.Errorf("connection is not initialized")
+	}
+	if c.client == nil {
+		return fmt.Errorf("client is not initialized")
+	}
+
+	log.Infof("Requesting REST data for client %s", c.Label)
+
+	// @TODO: Add version support
+	restRequest := &proto.RestDataRequest{}
+	restResponse, err := c.client.RequestRestData(context.Background(), restRequest)
+	if err != nil {
+		log.Errorf("Requesting REST data failed: %s", err.Error())
+		return err
+	}
+	if restResponse.Code != 0 {
+		log.Errorf("Requesting REST data failed with code %d: %s", restResponse.Code, restResponse.Error)
+		return fmt.Errorf("requesting REST data failed")
+	}
+
+	for _, endpoint := range restResponse.Endpoints {
+		log.Infof("Registering route %s:%s for client %s", endpoint.Method, endpoint.Path, c.Label)
+		if err := c.registerNewRouteHandler(restResponse.Root, endpoint.Method, endpoint.Path, c); err != nil {
+			log.Errorf("Registering route failed: %s", err.Error())
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *Client) HandleRestRequest(request *proto.RestApiRequest) (*proto.RestApiResponse, error) {
+	if c.conn == nil {
+		return nil, fmt.Errorf("connection is not initialized")
+	}
+	if c.client == nil {
+		return nil, fmt.Errorf("client is not initialized")
+	}
+
+	log.Infof("Handling REST request %s:%s for client %s", request.Method, request.Uri, c.Label)
+	return nil, nil
+}

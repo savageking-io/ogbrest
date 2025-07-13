@@ -72,5 +72,19 @@ func Serve(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	return rest.Start()
+
+	service := Service{}
+	err = service.Init(&rest)
+	if err != nil {
+		return err
+	}
+	if err := service.Start(); err != nil {
+		log.Errorf("Failed to start service: %s", err.Error())
+		return err
+	}
+
+	if err := rest.Start(); err != nil {
+		log.Errorf("Failed to start REST: %s", err.Error())
+	}
+	return nil
 }

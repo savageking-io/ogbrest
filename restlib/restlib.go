@@ -2,76 +2,159 @@
 package restlib
 
 import (
+	"context"
 	"fmt"
-	"github.com/savageking-io/ogbrest/proto"
+	restproto "github.com/savageking-io/ogbrest/proto"
+	"google.golang.org/grpc"
+	"net"
 )
 
-// RestServiceConfig - Configuration for the REST service that should be defined inside a microservice
-type RestServiceConfig struct {
-	isInitialized   bool
+type RestRequestHandler func(ctx context.Context, in *restproto.RestApiRequest) (*restproto.RestApiResponse, error)
+
+type RestInterServiceConfig struct {
+	Hostname  string                     `yaml:"hostname"`
+	Port      uint16                     `yaml:"port"`
+	Token     string                     `yaml:"token"`
+	Root      string                     `yaml:"root"`
+	Endpoints []RestInterServiceEndpoint `yaml:"endpoints"`
+}
+
+type RestInterServiceEndpoint struct {
+	Path   string `yaml:"path"`
+	Method string `yaml:"method"`
+}
+
+type RestInterServiceServer struct {
+	restproto.UnimplementedRestInterServiceServer
+	config          RestInterServiceConfig
 	isAuthenticated bool
-	AuthToken       string                `yaml:"auth_token"`
-	EndpointRoot    string                `yaml:"endpoint_root"`
-	Endpoints       []RestServiceEndpoint `yaml:"endpoints"`
+	RequestChan     chan *restproto.RestApiRequest
+	handlers        map[string]RestRequestHandler
 }
 
-// RestServiceEndpoint defines endpoints that will be available to users and handled/forwarded by REST API
-type RestServiceEndpoint struct {
-	Endpoint   string `yaml:"endpoint"` // Endpoint should be a top-level path
-	Method     string `yaml:"method"`
-	IsDisabled bool   `yaml:"is_disabled"`
-	// @TODO: Consider having a boolean whether auth required or not
-	// @TODO: Consider having definitions for extra headers
+func NewRestInterServiceServer(config RestInterServiceConfig) *RestInterServiceServer {
+	return &RestInterServiceServer{
+		config: config,
+	}
 }
 
-var serviceConfig RestServiceConfig
-
-// SetServiceConfig must be called after configuration loading is done
-func SetServiceConfig(config RestServiceConfig) {
-	serviceConfig = config
-	serviceConfig.isInitialized = true
+func (s *RestInterServiceServer) GetConfig() RestInterServiceConfig {
+	return s.config
 }
 
-// HandleIncomingAuthRequest will compare the incoming token to the one defined in RestServiceConfig
-func HandleIncomingAuthRequest(packet *proto.AuthenticateServiceRequest) (*proto.AuthenticateServiceResponse, error) {
-	if !serviceConfig.isInitialized {
-		// @TODO: Should we panic?
-		return nil, fmt.Errorf("service config not initialized")
-	}
+func (s *RestInterServiceServer) IsAuthenticated() bool {
+	return s.isAuthenticated
+}
 
-	if packet == nil {
-		return nil, fmt.Errorf("nil packet")
-	}
+func (s *RestInterServiceServer) Init() error {
+	s.RequestChan = make(chan *restproto.RestApiRequest, 100)
+	s.handlers = make(map[string]RestRequestHandler)
+	return nil
+}
 
-	if packet.Token == "" {
-		return nil, fmt.Errorf("empty token")
+func (s *RestInterServiceServer) Start() error {
+	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.config.Hostname, s.config.Port))
+	if err != nil {
+		return err
 	}
+	grpcServer := grpc.NewServer()
+	restproto.RegisterRestInterServiceServer(grpcServer, s)
+	if err := grpcServer.Serve(lis); err != nil {
+		return err
+	}
+	return nil
+}
 
-	if packet.Token == serviceConfig.AuthToken {
-		serviceConfig.isAuthenticated = true
-		return &proto.AuthenticateServiceResponse{
-			Code: 200,
+func (s *RestInterServiceServer) RegisterHandler(uri, method string, handler RestRequestHandler) error {
+	if s.handlers == nil {
+		return fmt.Errorf("handlers are not initialized")
+	}
+	requestDefinition := fmt.Sprintf("%s:%s", method, uri)
+	if _, ok := s.handlers[requestDefinition]; ok {
+		return fmt.Errorf("handler for %s already registered", requestDefinition)
+	}
+	s.handlers[uri] = handler
+	return nil
+}
+
+func (s *RestInterServiceServer) IsHandlerRegistered(uri, method string) bool {
+	requestDefinition := fmt.Sprintf("%s:%s", method, uri)
+	_, ok := s.handlers[requestDefinition]
+	return ok
+}
+
+func (s *RestInterServiceServer) UnregisterHandler(uri, method string) error {
+	requestDefinition := fmt.Sprintf("%s:%s", method, uri)
+	if _, ok := s.handlers[requestDefinition]; !ok {
+		return fmt.Errorf("handler for %s is not registered", requestDefinition)
+	}
+	delete(s.handlers, requestDefinition)
+	return nil
+}
+
+func (s *RestInterServiceServer) UnregisterAllHandlers() error {
+	s.handlers = make(map[string]RestRequestHandler)
+	return nil
+}
+
+func (s *RestInterServiceServer) AuthInterService(ctx context.Context, in *restproto.AuthenticateServiceRequest) (*restproto.AuthenticateServiceResponse, error) {
+	if s.config.Token == "" {
+		return nil, fmt.Errorf("token is not set")
+	}
+	if in.Token != s.config.Token {
+		return &restproto.AuthenticateServiceResponse{
+			Code:  1,
+			Error: "invalid token",
 		}, nil
 	}
-
-	return nil, fmt.Errorf("invalid token")
+	s.isAuthenticated = true
+	return &restproto.AuthenticateServiceResponse{
+		Code: 0,
+	}, nil
 }
 
-// HandleIncomingEndpointsRequest will return endpoints defined in configuration
-func HandleIncomingEndpointsRequest(packet *proto.RestDataRequest) (*proto.RestDataResponse, error) {
-	if !serviceConfig.isInitialized {
-		return nil, fmt.Errorf("service config not initialized")
+func (s *RestInterServiceServer) RequestRestData(ctx context.Context, in *restproto.RestDataRequest) (*restproto.RestDataDefinition, error) {
+	if s.config.Token == "" {
+		return nil, fmt.Errorf("token is not set")
 	}
 
-	if !serviceConfig.isAuthenticated {
-		return nil, fmt.Errorf("not authenticated")
+	if !s.isAuthenticated {
+		return &restproto.RestDataDefinition{
+			Code:  1,
+			Error: "not authenticated",
+		}, fmt.Errorf("not authenticated")
 	}
 
-	// @TODO: Handle version
-	response := &proto.RestDataResponse{
-		Code:         200,
-		EndpointsNum: int32(len(serviceConfig.Endpoints)),
-		Root:         serviceConfig.EndpointRoot,
+	endpoints := make([]*restproto.RestEndpoint, len(s.config.Endpoints))
+	for i, endpoint := range s.config.Endpoints {
+		endpoints[i] = &restproto.RestEndpoint{
+			Path:   endpoint.Path,
+			Method: endpoint.Method,
+		}
 	}
-	return response, nil
+
+	return &restproto.RestDataDefinition{
+		Code:         0,
+		Root:         s.config.Root,
+		Endpoints:    endpoints,
+		EndpointsNum: int32(len(s.config.Endpoints)),
+	}, nil
+}
+
+func (s *RestInterServiceServer) NewRestRequest(ctx context.Context, in *restproto.RestApiRequest) (*restproto.RestApiResponse, error) {
+	if s.config.Token == "" {
+		return nil, fmt.Errorf("token is not set")
+	}
+	if !s.isAuthenticated {
+		return nil, nil
+	}
+
+	requestDefinition := fmt.Sprintf("%s:%s", in.Method, in.Uri)
+	handler, ok := s.handlers[requestDefinition]
+	if !ok {
+		return &restproto.RestApiResponse{
+			Code: 404,
+		}, nil
+	}
+	return handler(ctx, in)
 }
