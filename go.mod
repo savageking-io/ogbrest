@@ -5,7 +5,7 @@ go 1.23.4
 require (
 	github.com/go-chi/chi/v5 v5.2.2
 	github.com/go-chi/cors v1.2.2
-	github.com/savageking-io/ogbcommon v0.0.0-20250712075748-d83991b6c5c9
+	github.com/savageking-io/ogbcommon v0.1.0
 	github.com/savageking-io/ogbrest/proto v0.0.0-20250714120153-ea1979466793
 	github.com/sirupsen/logrus v1.9.3
 	github.com/urfave/cli v1.22.17
