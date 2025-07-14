@@ -9,7 +9,7 @@ import (
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "rest-service"
+	app.Name = "ogbrest"
 	app.Version = AppVersion
 	app.Description = "Smart backend service for smart game developers"
 	app.Usage = "REST Microservice of NoErrorCode ecosystem"
