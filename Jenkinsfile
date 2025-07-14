@@ -6,10 +6,14 @@ pipeline {
     }
 
     stages {
+        stage('Preparing') {
+            steps {
+                sh 'go mod download'
+            }
+        }
         stage('Build') {
             steps {
                 echo 'Building..'
-                sh 'go get'
                 sh 'make'
             }
         }
