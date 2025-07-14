@@ -22,6 +22,10 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/russross/blackfriday/v2 v2.1.0 h1:JIOH55/0cWyOuilr9/qlrm0BSXldqnqwMsf35Ld67mk=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
+github.com/savageking-io/ogbcommon v0.0.0-20250712075748-d83991b6c5c9 h1:YAZV6+BOPp+TAfkE8CMwwD3QHDVfM5hgkJwF9PAw2qE=
+github.com/savageking-io/ogbcommon v0.0.0-20250712075748-d83991b6c5c9/go.mod h1:2cTsR8D4O96L95PxvM/Br3XJLsv4FxPd1+UFvk6m2Uw=
+github.com/savageking-io/ogbrest/proto v0.0.0-20250714120153-ea1979466793 h1:5HUk1ykZOWPp7eDezFTP+ZhuHZDeLf+x0sOMC/pcTdo=
+github.com/savageking-io/ogbrest/proto v0.0.0-20250714120153-ea1979466793/go.mod h1:6coPh5jJyeXcnw8mLzXcRjgPAfIR+gQhCLN+YUVRKoc=
 github.com/sirupsen/logrus v1.9.3 h1:dueUQJ1C2q9oE3F7wvmSGAaVtTmUizReu6fjN8uqzbQ=
 github.com/sirupsen/logrus v1.9.3/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVsIT4qYEQ=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=

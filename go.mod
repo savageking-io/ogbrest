@@ -5,8 +5,8 @@ go 1.23.4
 require (
 	github.com/go-chi/chi/v5 v5.2.2
 	github.com/go-chi/cors v1.2.2
-	github.com/savageking-io/ogbcommon v0.0.0
-	github.com/savageking-io/ogbrest/proto v0.0.0
+	github.com/savageking-io/ogbcommon v0.0.0-20250712075748-d83991b6c5c9
+	github.com/savageking-io/ogbrest/proto v0.0.0-20250714120153-ea1979466793
 	github.com/sirupsen/logrus v1.9.3
 	github.com/urfave/cli v1.22.17
 	google.golang.org/grpc v1.73.0
@@ -22,7 +22,3 @@ require (
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/savageking-io/ogbcommon v0.0.0 => ../ogbcommon
-
-replace github.com/savageking-io/ogbrest/proto v0.0.0 => ./proto
