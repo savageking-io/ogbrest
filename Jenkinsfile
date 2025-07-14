@@ -1,5 +1,9 @@
 pipeline {
-    agent any
+    agent {
+        node {
+            label 'Go Builder'
+        }
+    }
 
     stages {
         stage('Build') {
