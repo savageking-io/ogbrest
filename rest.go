@@ -74,32 +74,13 @@ func (r *REST) RegisterNewRoute(root, method, uri string, client *Client) error 
 	fullUri := fmt.Sprintf("%s%s", sanitizeRoot(root), sanitizeUri(uri))
 
 	r.mux.MethodFunc(method, fullUri, func(w http.ResponseWriter, req *http.Request) {
-		var headers []*proto.RestHeader
-		for k, v := range req.Header {
-			headers = append(headers, &proto.RestHeader{
-				Key:   k,
-				Value: v[0],
-			})
-		}
-
-		body, err := io.ReadAll(req.Body)
-		if err != nil {
-			log.Errorf("Failed to read request body: %s", err.Error())
+		request := r.httpRequestToProto(req)
+		if request == nil {
+			log.Errorf("Failed to convert HTTP request to proto")
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		var bodyString string
-		if len(body) > 0 {
-			bodyString = string(body)
-		}
 
-		request := &proto.RestApiRequest{
-			Method:  method,
-			Uri:     uri,
-			Headers: headers,
-			Body:    bodyString,
-			Source:  req.RemoteAddr,
-		}
 		response, err := client.HandleRestRequest(request)
 		if err != nil {
 			log.Errorf("Failed to handle REST request: %s", err.Error())
@@ -130,4 +111,51 @@ func (r *REST) RegisterNewRoute(root, method, uri string, client *Client) error 
 	})
 
 	return nil
+}
+
+func (r *REST) httpRequestToProto(req *http.Request) *proto.RestApiRequest {
+	var headers []*proto.RestHeader
+	for k, v := range req.Header {
+		headers = append(headers, &proto.RestHeader{
+			Key:   k,
+			Value: v[0],
+		})
+	}
+
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		log.Errorf("Failed to read request body: %s", err.Error())
+		return nil
+	}
+	var bodyString string
+	if len(body) > 0 {
+		bodyString = string(body)
+	}
+
+	var formData []*proto.RestApiFormData
+	if req.Method == "POST" {
+		err = req.ParseForm()
+		if err != nil {
+			log.Errorf("Failed to parse request body: %s", err.Error())
+			return nil
+		}
+		for key, values := range req.Form {
+			form := &proto.RestApiFormData{
+				Key: key,
+			}
+			for _, value := range values {
+				form.Value = append(form.Value, value)
+			}
+			formData = append(formData, form)
+		}
+	}
+
+	return &proto.RestApiRequest{
+		Uri:     req.URL.Path,
+		Method:  req.Method,
+		Headers: headers,
+		Body:    bodyString,
+		Source:  req.RemoteAddr,
+		Form:    formData,
+	}
 }
