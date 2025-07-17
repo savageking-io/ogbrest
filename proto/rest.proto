@@ -37,11 +37,17 @@ message RestEndpoint {
 }
 
 message RestApiRequest {
-  string uri = 1;
-  string method = 2;
-  repeated RestHeader headers = 3;
-  string body = 4;
-  string source = 5;
+  string Uri = 1;
+  string Method = 2;
+  repeated RestHeader Headers = 3;
+  string Body = 4;
+  string Source = 5;
+  repeated RestApiFormData Form = 6;
+}
+
+message RestApiFormData {
+  string key = 1;
+  string value = 2;
 }
 
 message RestApiResponse {
