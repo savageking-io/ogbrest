@@ -1,14 +1,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
 	"github.com/savageking-io/ogbrest/proto"
+	"github.com/savageking-io/ogbrest/user_client"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -19,16 +22,24 @@ type Route struct {
 }
 
 type REST struct {
-	Hostname       string
-	Port           uint16
-	AllowedOrigins []string
-	mux            *chi.Mux
+	Hostname               string
+	Port                   uint16
+	AllowedOrigins         []string
+	mux                    *chi.Mux
+	RoutesExcludedFromAuth []string
+	UserService            *user_client.UserClient
 }
 
-func (r *REST) Init(inConfig *RestConfig) error {
+func (r *REST) Init(inConfig *RestConfig, user *user_client.UserClient) error {
 	if inConfig == nil {
 		return fmt.Errorf("no configuration")
 	}
+
+	if user == nil {
+		return fmt.Errorf("no user service provided")
+	}
+
+	r.UserService = user
 
 	r.Hostname = inConfig.Hostname
 	r.Port = inConfig.Port
@@ -57,6 +68,58 @@ func (r *REST) Start() error {
 	return http.ListenAndServe(fmt.Sprintf("%s:%d", r.Hostname, r.Port), r.mux)
 }
 
+func (r *REST) AddToAuthIgnoreList(uri string) {
+	r.RoutesExcludedFromAuth = append(r.RoutesExcludedFromAuth, uri)
+}
+
+func (r *REST) JWTMiddleware() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			// @TODO: Fix this
+			log.Tracef("[JWTMiddleware] Request: %s %s", req.Method, req.URL.Path)
+			for _, path := range r.RoutesExcludedFromAuth {
+				if req.URL.Path == path || strings.HasPrefix(req.URL.Path, path) {
+					next.ServeHTTP(w, req)
+					return
+				}
+			}
+
+			authHeader := req.Header.Get("Authorization")
+			if authHeader == "" {
+				http.Error(w, "Missing Authorization header", http.StatusUnauthorized)
+				return
+			}
+
+			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+			if tokenString == authHeader {
+				http.Error(w, "Invalid Authorization header format", http.StatusUnauthorized)
+				return
+			}
+
+			if r.UserService == nil {
+				http.Error(w, "User service is not initialized", http.StatusServiceUnavailable)
+				return
+			}
+
+			isValid, userId, err := r.UserService.ValidateToken(context.Background(), tokenString)
+			if err != nil {
+				log.Errorf("Failed to validate token: %s", err.Error())
+				http.Error(w, "Failed to validate token", http.StatusUnauthorized)
+				return
+			}
+
+			if !isValid {
+				http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
+				return
+			}
+
+			log.Tracef("[JWTMiddleware] Request handled")
+			ctx := context.WithValue(req.Context(), "user_id", userId)
+			next.ServeHTTP(w, req.WithContext(ctx))
+		})
+	}
+}
+
 func (r *REST) HandleStatusRequest(w http.ResponseWriter, req *http.Request) {
 	data := make(map[string]interface{})
 	data["code"] = 0
@@ -80,14 +143,33 @@ func (r *REST) RegisterNewRoute(root, method, uri string, client *Client) error 
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		request.Uri = uri
 
 		response, err := client.HandleRestRequest(request)
 		if err != nil {
 			log.Errorf("Failed to handle REST request: %s", err.Error())
-			w.WriteHeader(http.StatusInternalServerError)
+
+			// In a normal scenario a service must provide http code that should be returned to the client
+			if response != nil && response.HttpCode != 0 {
+				w.WriteHeader(int(response.HttpCode))
+			} else {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
+
+			if response != nil && response.Code != 0 {
+				// We have an internal error code provided. Return it to the client as json
+				ret := make(map[string]interface{})
+				ret["code"] = response.Code
+				ret["error"] = response.Error
+				ret["date"] = time.Now().String()
+				responseBody, _ := json.Marshal(ret)
+				_, _ = w.Write(responseBody)
+			}
+
 			return
 		}
 
+		// This is not good - blame the service for bad implementation
 		if response == nil {
 			log.Errorf("Failed to handle REST request: no response")
 			w.WriteHeader(http.StatusInternalServerError)
@@ -98,14 +180,7 @@ func (r *REST) RegisterNewRoute(root, method, uri string, client *Client) error 
 			w.Header().Set(header.Key, header.Value)
 		}
 
-		if response.Code == 0 {
-			// Another service should return valid HTTP code
-			log.Warnf("Invalid response code for request: %s %s", method, uri)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		w.WriteHeader(int(response.Code))
+		w.WriteHeader(int(response.HttpCode))
 		_, _ = w.Write([]byte(response.Body))
 		return
 	})
@@ -151,7 +226,6 @@ func (r *REST) httpRequestToProto(req *http.Request) *proto.RestApiRequest {
 	}
 
 	return &proto.RestApiRequest{
-		Uri:     req.URL.Path,
 		Method:  req.Method,
 		Headers: headers,
 		Body:    bodyString,

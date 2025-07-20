@@ -9,3 +9,6 @@ services:
     hostname: localhost
     port: 12121
     token: "random-token-for-user-service"
+user_client:
+  hostname: localhost
+  port: 12122

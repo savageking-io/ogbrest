@@ -34,6 +34,7 @@ message RestDataDefinition {
 message RestEndpoint {
   string path = 1;
   string method = 2;
+  bool skip_auth_middleware = 3;
 }
 
 message RestApiRequest {
@@ -51,9 +52,11 @@ message RestApiFormData {
 }
 
 message RestApiResponse {
-  int32 code = 1;
-  repeated RestHeader headers = 2;
-  string body = 3;
+  int32 Code = 1;
+  string Error = 2;
+  int32 HttpCode = 3;
+  repeated RestHeader Headers = 4;
+  string Body = 5;
 }
 
 message RestHeader {

@@ -2,6 +2,7 @@ package main
 
 import (
 	ogb "github.com/savageking-io/ogbcommon"
+	"github.com/savageking-io/ogbrest/user_client"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"os"
@@ -67,8 +68,18 @@ func Serve(c *cli.Context) error {
 	log.Infof("REST server will start on %s:%d", AppConfig.Rest.Hostname, AppConfig.Rest.Port)
 	log.Infof("Configured %d services", len(AppConfig.Services))
 
+	userClient := user_client.UserClient{}
+	if err := userClient.Init(AppConfig.UserClient.Hostname, AppConfig.UserClient.Port); err != nil {
+		return err
+	}
+
+	if err := userClient.Start(); err != nil {
+		log.Errorf("Failed to start user client: %s", err.Error())
+		userClient.Restart() // This will continuously attempt to reconnect
+	}
+
 	rest := REST{}
-	err = rest.Init(&AppConfig.Rest)
+	err = rest.Init(&AppConfig.Rest, &userClient)
 	if err != nil {
 		return err
 	}
@@ -78,7 +89,7 @@ func Serve(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := service.Start(); err != nil {
+	if err := service.Start(&rest); err != nil {
 		log.Errorf("Failed to start service: %s", err.Error())
 		return err
 	}

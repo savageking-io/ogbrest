@@ -20,8 +20,9 @@ type RestInterServiceConfig struct {
 }
 
 type RestInterServiceEndpoint struct {
-	Path   string `yaml:"path"`
-	Method string `yaml:"method"`
+	Path               string `yaml:"path"`
+	Method             string `yaml:"method"`
+	SkipAuthMiddleware bool   `yaml:"skip_auth_middleware"`
 }
 
 type RestInterServiceServer struct {
@@ -65,6 +66,7 @@ func (s *RestInterServiceServer) Start() error {
 	return nil
 }
 
+// RegisterHandler will add new URL to the rest service
 func (s *RestInterServiceServer) RegisterHandler(uri, method string, handler RestRequestHandler) error {
 	if s.handlers == nil {
 		return fmt.Errorf("handlers are not initialized")
@@ -138,8 +140,9 @@ func (s *RestInterServiceServer) RequestRestData(ctx context.Context, in *restpr
 	endpoints := make([]*restproto.RestEndpoint, len(s.config.Endpoints))
 	for i, endpoint := range s.config.Endpoints {
 		endpoints[i] = &restproto.RestEndpoint{
-			Path:   endpoint.Path,
-			Method: endpoint.Method,
+			Path:               endpoint.Path,
+			Method:             endpoint.Method,
+			SkipAuthMiddleware: endpoint.SkipAuthMiddleware,
 		}
 	}
 

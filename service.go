@@ -15,7 +15,7 @@ func (s *Service) Init(r *REST) error {
 	for _, service := range AppConfig.Services {
 		log.Infof("Initializing REST client %s", service.Label)
 		s.restClients[service.Label] = &Client{}
-		if err := s.restClients[service.Label].Init(&service, r.RegisterNewRoute); err != nil {
+		if err := s.restClients[service.Label].Init(&service, r.RegisterNewRoute, r.AddToAuthIgnoreList); err != nil {
 			log.Errorf("Failed to initialize REST client: %s", err.Error())
 			return err
 		}
@@ -24,12 +24,11 @@ func (s *Service) Init(r *REST) error {
 	return nil
 }
 
-func (s *Service) Start() error {
-	// @TODO: Make it safe with reconnects/timeouts and disconnect handling
+func (s *Service) Start(r *REST) error {
 	for _, client := range s.restClients {
 		if err := client.Start(); err != nil {
 			log.Errorf("Failed to start REST client: %s", err.Error())
-			return err
+			client.ScheduleRestart()
 		}
 	}
 
