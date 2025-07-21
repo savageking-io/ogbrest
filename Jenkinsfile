@@ -24,14 +24,12 @@ pipeline {
             }
         }
         stage('Deploy') {
+            when {
+                branch 'main'
+            }
             steps {
-                when {
-                    branch 'main'
-                }
-                steps {
-                    script {
-                        build job: 'OnlineGameBase/Docker/ogbrest-dev', wait: true
-                    }
+                script {
+                    build job: 'OnlineGameBase/Docker/ogbrest-dev', wait: true
                 }
             }
         }
