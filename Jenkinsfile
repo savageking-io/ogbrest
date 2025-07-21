@@ -25,7 +25,14 @@ pipeline {
         }
         stage('Deploy') {
             steps {
-                echo 'Deploying....'
+                when {
+                    branch 'main'
+                }
+                steps {
+                    script {
+                        build job: 'OnlineGameBase/Docker/ogbrest-dev', wait: true
+                    }
+                }
             }
         }
     }
