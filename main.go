@@ -42,7 +42,7 @@ func main() {
 				cli.StringFlag{
 					Name:        "log",
 					Usage:       "Specify logging level",
-					Value:       LogLevel,
+					Value:       "",
 					Destination: &LogLevel,
 				},
 			},
@@ -54,12 +54,19 @@ func main() {
 }
 
 func Serve(c *cli.Context) error {
-	err := ogb.SetLogLevel(LogLevel)
+	err := ogb.ReadYAMLConfig(ConfigFilepath, &AppConfig)
 	if err != nil {
 		return err
 	}
 
-	err = ogb.ReadYAMLConfig(ConfigFilepath, &AppConfig)
+	if LogLevel == "" && AppConfig.LogLevel != "" {
+		LogLevel = AppConfig.LogLevel
+	}
+	if LogLevel == "" {
+		LogLevel = "info"
+	}
+
+	err = ogb.SetLogLevel(LogLevel)
 	if err != nil {
 		return err
 	}

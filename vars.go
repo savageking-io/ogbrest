@@ -3,7 +3,7 @@ package main
 var (
 	AppVersion     = "Undefined"
 	ConfigFilepath = "rest-config.yaml"
-	LogLevel       = "info"
+	LogLevel       = ""
 	AppConfig      Config
 )
 
@@ -27,6 +27,7 @@ type UserClientConfig struct {
 }
 
 type Config struct {
+	LogLevel   string           `yaml:"log_level"`
 	Rest       RestConfig       `yaml:"rest"`
 	Services   []ServiceConfig  `yaml:"services"`
 	UserClient UserClientConfig `yaml:"user_client"`
