@@ -1,15 +1,15 @@
 ---
 log_level: info
 rest:
-  hostname: localhost
+  hostname: ogbrest
   port: 8090
   allowed_origins:
     - http://localhost:3000
 services:
   - label: user
-    hostname: localhost
+    hostname: ogbuser
     port: 12121
-    token: "random-token-for-user-service"
+    token: "random-token-for-user"
 user_client:
-  hostname: localhost
+  hostname: ogbuser
   port: 12122
