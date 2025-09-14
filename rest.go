@@ -54,6 +54,11 @@ func (r *REST) Init(inConfig *RestConfig, user *user_client.UserClient) error {
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
+	// Apply JWT middleware globally; it will skip paths present in RoutesExcludedFromAuth
+	r.mux.Use(r.JWTMiddleware())
+
+	// Default exclusions
+	r.AddToAuthIgnoreList("/status")
 
 	return nil
 }
@@ -77,10 +82,28 @@ func (r *REST) JWTMiddleware() func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			// @TODO: Fix this
 			log.Tracef("[JWTMiddleware] Request: %s %s", req.Method, req.URL.Path)
-			for _, path := range r.RoutesExcludedFromAuth {
-				if req.URL.Path == path || strings.HasPrefix(req.URL.Path, path) {
+			requestPath := req.URL.Path
+			requestKey := fmt.Sprintf("%s:%s", req.Method, requestPath)
+			for _, ex := range r.RoutesExcludedFromAuth {
+				log.Warnf("[JWTMiddleware] Checking path %s against %s", ex, requestPath)
+				// Exact or prefix path match (e.g., "/status" or "/api/public")
+				if requestPath == ex || strings.HasPrefix(requestPath, ex) {
 					next.ServeHTTP(w, req)
 					return
+				}
+				// Support entries like METHOD:PATH coming from services, where PATH may be without root
+				// Match exact METHOD:FULL_PATH or suffix METHOD:ENDPOINT_PATH
+				if strings.Contains(ex, ":") {
+					if requestKey == ex || strings.HasSuffix(requestKey, ex) {
+						next.ServeHTTP(w, req)
+						return
+					}
+				} else {
+					// Also allow suffix match on path (ignore unknown root prefix)
+					if strings.HasSuffix(requestPath, ex) {
+						next.ServeHTTP(w, req)
+						return
+					}
 				}
 			}
 

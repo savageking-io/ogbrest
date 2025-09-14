@@ -138,8 +138,8 @@ func (c *Client) requestRestData() error {
 			return err
 		}
 		if endpoint.SkipAuthMiddleware {
-			log.Infof("Adding route %s:%s to ignore list for client [%s]", endpoint.Method, endpoint.Path, c.Label)
-			c.addRouteToIgnoreListHandler(fmt.Sprintf("%s:%s", endpoint.Method, endpoint.Path))
+			log.Infof("Adding route %s:/%s%s to ignore list for client [%s]", endpoint.Method, restResponse.Root, endpoint.Path, c.Label)
+			c.addRouteToIgnoreListHandler(fmt.Sprintf("%s:/%s%s", endpoint.Method, restResponse.Root, endpoint.Path))
 		}
 	}
 

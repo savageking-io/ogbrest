@@ -1,6 +1,6 @@
 module github.com/savageking-io/ogbrest
 
-go 1.23.4
+go 1.25.1
 
 require (
 	github.com/go-chi/chi/v5 v5.2.2

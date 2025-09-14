@@ -1,5 +1,5 @@
 ---
-log_level: info
+log_level: trace
 rest:
   hostname: ogbrest
   port: 8090
@@ -10,6 +10,10 @@ services:
     hostname: ogbuser
     port: 12121
     token: "random-token-for-user"
+  - label: test
+    hostname: ogbtest
+    port: 9001
+    token: "random-token-for-test"
 user_client:
   hostname: ogbuser
   port: 12122
