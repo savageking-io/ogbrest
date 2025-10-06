@@ -153,6 +153,9 @@ func (c *Client) HandleRestRequest(request *proto.RestApiRequest) (*proto.RestAp
 	if c.client == nil {
 		return nil, fmt.Errorf("client is not initialized")
 	}
+	if request == nil {
+		return nil, fmt.Errorf("request is not initialized")
+	}
 
 	log.Debugf("Handling REST request %s:%s for client [%s]", request.Method, request.Uri, c.Label)
 
@@ -165,7 +168,11 @@ func (c *Client) HandleRestRequest(request *proto.RestApiRequest) (*proto.RestAp
 			}, err
 		}
 		log.Warnf("Handling REST request failed for client [%s]: %s", c.Label, err.Error())
-		return nil, err
+		return restResponse, err
+	}
+
+	if restResponse == nil {
+		log.Warnf("Received empty response from [%s]", c.Label)
 	}
 
 	return restResponse, nil

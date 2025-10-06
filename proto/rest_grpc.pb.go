@@ -22,6 +22,7 @@ const (
 	RestInterService_AuthInterService_FullMethodName = "/rest.RestInterService/AuthInterService"
 	RestInterService_RequestRestData_FullMethodName  = "/rest.RestInterService/RequestRestData"
 	RestInterService_NewRestRequest_FullMethodName   = "/rest.RestInterService/NewRestRequest"
+	RestInterService_Ping_FullMethodName             = "/rest.RestInterService/Ping"
 )
 
 // RestInterServiceClient is the client API for RestInterService service.
@@ -31,6 +32,7 @@ type RestInterServiceClient interface {
 	AuthInterService(ctx context.Context, in *AuthenticateServiceRequest, opts ...grpc.CallOption) (*AuthenticateServiceResponse, error)
 	RequestRestData(ctx context.Context, in *RestDataRequest, opts ...grpc.CallOption) (*RestDataDefinition, error)
 	NewRestRequest(ctx context.Context, in *RestApiRequest, opts ...grpc.CallOption) (*RestApiResponse, error)
+	Ping(ctx context.Context, in *PingMessage, opts ...grpc.CallOption) (*PingMessage, error)
 }
 
 type restInterServiceClient struct {
@@ -71,6 +73,16 @@ func (c *restInterServiceClient) NewRestRequest(ctx context.Context, in *RestApi
 	return out, nil
 }
 
+func (c *restInterServiceClient) Ping(ctx context.Context, in *PingMessage, opts ...grpc.CallOption) (*PingMessage, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PingMessage)
+	err := c.cc.Invoke(ctx, RestInterService_Ping_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RestInterServiceServer is the server API for RestInterService service.
 // All implementations must embed UnimplementedRestInterServiceServer
 // for forward compatibility.
@@ -78,6 +90,7 @@ type RestInterServiceServer interface {
 	AuthInterService(context.Context, *AuthenticateServiceRequest) (*AuthenticateServiceResponse, error)
 	RequestRestData(context.Context, *RestDataRequest) (*RestDataDefinition, error)
 	NewRestRequest(context.Context, *RestApiRequest) (*RestApiResponse, error)
+	Ping(context.Context, *PingMessage) (*PingMessage, error)
 	mustEmbedUnimplementedRestInterServiceServer()
 }
 
@@ -96,6 +109,9 @@ func (UnimplementedRestInterServiceServer) RequestRestData(context.Context, *Res
 }
 func (UnimplementedRestInterServiceServer) NewRestRequest(context.Context, *RestApiRequest) (*RestApiResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method NewRestRequest not implemented")
+}
+func (UnimplementedRestInterServiceServer) Ping(context.Context, *PingMessage) (*PingMessage, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Ping not implemented")
 }
 func (UnimplementedRestInterServiceServer) mustEmbedUnimplementedRestInterServiceServer() {}
 func (UnimplementedRestInterServiceServer) testEmbeddedByValue()                          {}
@@ -172,6 +188,24 @@ func _RestInterService_NewRestRequest_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RestInterService_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PingMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RestInterServiceServer).Ping(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: RestInterService_Ping_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RestInterServiceServer).Ping(ctx, req.(*PingMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // RestInterService_ServiceDesc is the grpc.ServiceDesc for RestInterService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -190,6 +224,10 @@ var RestInterService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "NewRestRequest",
 			Handler:    _RestInterService_NewRestRequest_Handler,
+		},
+		{
+			MethodName: "Ping",
+			Handler:    _RestInterService_Ping_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

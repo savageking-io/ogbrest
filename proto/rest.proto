@@ -3,10 +3,13 @@ syntax = "proto3";
 package rest;
 option go_package = "github.com/savageking-io/ogbrest/proto";
 
+import "google/protobuf/timestamp.proto";
+
 service RestInterService {
   rpc AuthInterService (rest.AuthenticateServiceRequest) returns (rest.AuthenticateServiceResponse);
   rpc RequestRestData (rest.RestDataRequest) returns (rest.RestDataDefinition);
   rpc NewRestRequest (rest.RestApiRequest) returns (rest.RestApiResponse);
+  rpc Ping (rest.PingMessage) returns (rest.PingMessage);
 }
 
 message AuthenticateServiceRequest {
@@ -62,4 +65,9 @@ message RestApiResponse {
 message RestHeader {
   string key = 1;
   string value = 2;
+}
+
+message PingMessage {
+  google.protobuf.Timestamp SentAt = 1;
+  google.protobuf.Timestamp RepliedAt = 2;
 }

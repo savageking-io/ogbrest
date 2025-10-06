@@ -1,5 +1,9 @@
 ---
 log_level: trace
+kafka:
+  brokers:
+    - kafka:9092
+  topic: "rest"
 rest:
   hostname: ogbrest
   port: 8090

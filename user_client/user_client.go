@@ -15,27 +15,34 @@ import (
 
 // UserClient connects to user microservice for JWT operations
 type UserClient struct {
-	conn         *grpc.ClientConn
-	client       proto.UserServiceClient
-	hostname     string
-	port         uint16
-	mutex        sync.Mutex
-	isRestarting bool
+	conn      *grpc.ClientConn
+	client    proto.UserServiceClient
+	hostname  string
+	port      uint16
+	mutex     sync.Mutex
+	ErrorChan chan error
+}
+
+func NewUserClient() *UserClient {
+	return &UserClient{}
 }
 
 func (c *UserClient) Init(hostname string, port uint16) error {
+	if hostname == "" {
+		return fmt.Errorf("hostname is not provided")
+	}
+	if port == 0 {
+		return fmt.Errorf("port is not provided")
+	}
 	c.hostname = hostname
 	c.port = port
+	c.ErrorChan = make(chan error)
 	return nil
 }
 
-func (c *UserClient) Start() error {
+func (c *UserClient) Run() error {
 	log.Infof("Connecting to user microservice at %s:%d", c.hostname, c.port)
 	var err error
-
-	if c.isRestarting {
-		return nil
-	}
 
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
@@ -51,42 +58,32 @@ func (c *UserClient) Start() error {
 
 	c.client = proto.NewUserServiceClient(c.conn)
 
-	resp, err := c.client.Ping(context.Background(), &proto.PingMessage{SentAt: timestamppb.New(time.Now())})
-	if err != nil {
-		log.Errorf("Ping to user microservice failed: %s", err.Error())
-		return err
+	lastPing := time.Unix(0, 0)
+	for {
+		if time.Since(lastPing) > time.Second*5 {
+			if err := c.Ping(); err != nil {
+				log.Errorf("Ping to user microservice failed: %s", err.Error())
+				return err
+			}
+			lastPing = time.Now()
+		}
 	}
-
-	sentAt := resp.SentAt.AsTime()
-	repliedAt := resp.RepliedAt.AsTime()
-	diff := repliedAt.Sub(sentAt)
-	log.Infof("Ping to user microservice replied in %s", diff.String())
-
-	return err
 }
 
-// Restart should be called only from the main thread (main.go, service.go)
-func (c *UserClient) Restart() {
-	if c.isRestarting {
-		return
+func (c *UserClient) Stop() error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	if c.conn == nil {
+		return fmt.Errorf("already closed")
 	}
-	c.isRestarting = true
-	waitTime := time.Millisecond * 1000
-	log.Infof("Scheduling restart of user client in %s", waitTime.String())
-	go func() {
-		startedAt := time.Now()
-		for {
-			time.Sleep(time.Millisecond * 100)
-			if time.Since(startedAt) > waitTime {
-				c.isRestarting = false
-				if err := c.Start(); err != nil {
-					c.Restart()
-					return
-				}
-				break
-			}
-		}
-	}()
+
+	if err := c.conn.Close(); err != nil {
+		return err
+	}
+	c.conn = nil
+	c.client = nil
+	return nil
 }
 
 func (c *UserClient) ValidateToken(ctx context.Context, token string) (bool, int32, error) {
@@ -105,7 +102,7 @@ func (c *UserClient) ValidateToken(ctx context.Context, token string) (bool, int
 			go func() {
 				// @TODO: We should not call start all the time, but after some period if reconnect failed
 				log.Errorf("Connection to user microservice lost. Reconnecting...")
-				if err := c.Start(); err != nil {
+				if err := c.Run(); err != nil {
 					log.Errorf("Connection to user microservice failed: %s", err.Error())
 				}
 			}()
@@ -118,4 +115,21 @@ func (c *UserClient) ValidateToken(ctx context.Context, token string) (bool, int
 
 	log.Debugf("Token %s validation result: %t", token, result.IsValid)
 	return result.IsValid, result.UserId, nil
+}
+
+// Ping will send a ping message to user microservice
+// If service is shutdown it will initiate restart
+func (c *UserClient) Ping() error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+	resp, err := c.client.Ping(ctx, &proto.PingMessage{SentAt: timestamppb.New(time.Now())})
+	if err != nil {
+		log.Errorf("Ping to user microservice failed: %s", err.Error())
+		return err
+	}
+	sentAt := resp.SentAt.AsTime()
+	repliedAt := resp.RepliedAt.AsTime()
+	diff := repliedAt.Sub(sentAt)
+	log.Debugf("Ping to user microservice replied in %s", diff.String())
+	return nil
 }

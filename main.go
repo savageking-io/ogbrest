@@ -2,7 +2,8 @@ package main
 
 import (
 	ogb "github.com/savageking-io/ogbcommon"
-	"github.com/savageking-io/ogbrest/user_client"
+	//"github.com/savageking-io/ogbrest/user_client"
+	user_client "github.com/savageking-io/ogbuser/client"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"
 	"os"
@@ -75,18 +76,16 @@ func Serve(c *cli.Context) error {
 	log.Infof("REST server will start on %s:%d", AppConfig.Rest.Hostname, AppConfig.Rest.Port)
 	log.Infof("Configured %d services", len(AppConfig.Services))
 
-	userClient := user_client.UserClient{}
-	if err := userClient.Init(AppConfig.UserClient.Hostname, AppConfig.UserClient.Port); err != nil {
-		return err
-	}
-
-	if err := userClient.Start(); err != nil {
-		log.Errorf("Failed to start user client: %s", err.Error())
-		userClient.Restart() // This will continuously attempt to reconnect
-	}
+	userClient := user_client.NewClient(AppConfig.UserClient.Hostname, AppConfig.UserClient.Port)
+	go func() {
+		if err := userClient.Run(); err != nil {
+			// @TODO: This is a critical issue - we should find a waay to handle it
+			log.Errorf("User client failed to start: %s", err.Error())
+		}
+	}()
 
 	rest := REST{}
-	err = rest.Init(&AppConfig.Rest, &userClient)
+	err = rest.Init(&AppConfig.Rest, AppConfig.Kafka, userClient)
 	if err != nil {
 		return err
 	}

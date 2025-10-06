@@ -1,5 +1,7 @@
 package main
 
+import "github.com/savageking-io/ogbrest/kafka"
+
 var (
 	AppVersion     = "Undefined"
 	ConfigFilepath = "rest-config.yaml"
@@ -31,4 +33,5 @@ type Config struct {
 	Rest       RestConfig       `yaml:"rest"`
 	Services   []ServiceConfig  `yaml:"services"`
 	UserClient UserClientConfig `yaml:"user_client"`
+	Kafka      kafka.Config     `yaml:"kafka"`
 }

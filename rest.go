@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
+	"github.com/savageking-io/ogbrest/kafka"
 	"github.com/savageking-io/ogbrest/proto"
-	"github.com/savageking-io/ogbrest/user_client"
+	user_client "github.com/savageking-io/ogbuser/client"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net/http"
@@ -27,10 +28,11 @@ type REST struct {
 	AllowedOrigins         []string
 	mux                    *chi.Mux
 	RoutesExcludedFromAuth []string
-	UserService            *user_client.UserClient
+	UserService            *user_client.Client
+	kafka                  *kafka.Publisher
 }
 
-func (r *REST) Init(inConfig *RestConfig, user *user_client.UserClient) error {
+func (r *REST) Init(inConfig *RestConfig, kafkaConfig kafka.Config, user *user_client.Client) error {
 	if inConfig == nil {
 		return fmt.Errorf("no configuration")
 	}
@@ -59,6 +61,11 @@ func (r *REST) Init(inConfig *RestConfig, user *user_client.UserClient) error {
 
 	// Default exclusions
 	r.AddToAuthIgnoreList("/status")
+
+	r.kafka = new(kafka.Publisher)
+	if err := r.kafka.Init(kafkaConfig); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -160,6 +167,7 @@ func (r *REST) RegisterNewRoute(root, method, uri string, client *Client) error 
 	fullUri := fmt.Sprintf("%s%s", sanitizeRoot(root), sanitizeUri(uri))
 
 	r.mux.MethodFunc(method, fullUri, func(w http.ResponseWriter, req *http.Request) {
+		r.kafka.LogRequest(req)
 		request := r.httpRequestToProto(req)
 		if request == nil {
 			log.Errorf("Failed to convert HTTP request to proto")
@@ -171,6 +179,10 @@ func (r *REST) RegisterNewRoute(root, method, uri string, client *Client) error 
 		response, err := client.HandleRestRequest(request)
 		if err != nil {
 			log.Errorf("Failed to handle REST request: %s", err.Error())
+
+			if response != nil {
+				log.Debugf("Response from failed RPC call: %+v", response)
+			}
 
 			// In a normal scenario a service must provide http code that should be returned to the client
 			if response != nil && response.HttpCode != 0 {
@@ -200,10 +212,21 @@ func (r *REST) RegisterNewRoute(root, method, uri string, client *Client) error 
 		}
 
 		for _, header := range response.Headers {
+			log.Tracef("Writing header %s: %s", header.Key, header.Value)
 			w.Header().Set(header.Key, header.Value)
 		}
 
-		w.WriteHeader(int(response.HttpCode))
+		if response.HttpCode != 0 {
+			w.WriteHeader(int(response.HttpCode))
+		} else {
+			log.Warnf("No HTTP code provided for response. Using 200. Check service implementation")
+		}
+
+		if response.Body == "" && response.Error != "" {
+			response.Body = "{'error': '" + response.Error + "'}"
+		}
+
+		log.Tracef("Writing response body: %s", response.Body)
 		_, _ = w.Write([]byte(response.Body))
 		return
 	})
