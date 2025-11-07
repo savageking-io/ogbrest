@@ -54,6 +54,7 @@ type WebSocketClient struct {
 func (c *WebSocketClient) Run() {
 	log.Traceln("WebSocketClient::Run")
 	defer c.conn.Close()
+
 	for !c.shutdown {
 		messageType, message, err := c.conn.ReadMessage()
 		if err != nil {
@@ -108,6 +109,8 @@ func (c *WebSocketClient) HandleCloseMessage(message []byte) error {
 	return nil
 }
 
+// HandleProtobuf will attempt to unmarshal message in a protobuf packet format (see packet)
+// Upon success it will try to forward payload to the appropriate service
 func (c *WebSocketClient) HandleProtobuf(message []byte) error {
 	log.Traceln("WebSocketClient::HandleProtobuf")
 	if c.conn == nil {

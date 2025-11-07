@@ -5,8 +5,9 @@ go 1.25.1
 require (
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-chi/cors v1.2.2
+	github.com/gorilla/websocket v1.5.3
 	github.com/savageking-io/ogbcommon v0.2.0
-	github.com/savageking-io/ogbrest/proto v0.4.0
+	github.com/savageking-io/ogbrest/proto v0.8.0
 	github.com/savageking-io/ogbuser/client v0.4.0
 	github.com/savageking-io/ogbuser/proto v0.4.0
 	github.com/segmentio/kafka-go v0.4.49
@@ -18,7 +19,6 @@ require (
 
 require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
-	github.com/gorilla/websocket v1.5.3 // indirect
 	github.com/klauspost/compress v1.15.9 // indirect
 	github.com/pierrec/lz4/v4 v4.1.15 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
