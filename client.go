@@ -18,10 +18,11 @@ type RegisterNewRouteHandler func(root, method, uri string, client *Client) erro
 type AddRouteToIgnoreListHandler func(uri string)
 
 type Client struct {
-	Label                       string
+	Label                       string // Unique label of the service to help developers identify it
 	Host                        string
 	Port                        uint16
 	Token                       string
+	ServiceId                   uint16 // ServiceId provided by the client during the authentication step
 	conn                        *grpc.ClientConn
 	client                      proto.RestInterServiceClient
 	registerNewRouteHandler     RegisterNewRouteHandler

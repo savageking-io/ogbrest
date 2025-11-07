@@ -2,7 +2,6 @@ package main
 
 import (
 	ogb "github.com/savageking-io/ogbcommon"
-	//"github.com/savageking-io/ogbrest/user_client"
 	user_client "github.com/savageking-io/ogbuser/client"
 	log "github.com/sirupsen/logrus"
 	"github.com/urfave/cli"

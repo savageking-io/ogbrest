@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -23,13 +24,16 @@ type Route struct {
 }
 
 type REST struct {
-	Hostname               string
-	Port                   uint16
-	AllowedOrigins         []string
-	mux                    *chi.Mux
-	RoutesExcludedFromAuth []string
-	UserService            *user_client.Client
-	kafka                  *kafka.Publisher
+	Hostname                string
+	Port                    uint16
+	AllowedOrigins          []string
+	mux                     *chi.Mux
+	RoutesExcludedFromAuth  []string
+	UserService             *user_client.Client
+	kafka                   *kafka.Publisher
+	WebSocketClients        map[uint32]*WebSocketClient // WebSocket clients that passed authentication and have ID
+	PendingWebSocketClients []*WebSocketClient          // WebSocket clients that didn't pass authentication
+	wscMutex                sync.Mutex
 }
 
 func (r *REST) Init(inConfig *RestConfig, kafkaConfig kafka.Config, user *user_client.Client) error {
@@ -40,6 +44,8 @@ func (r *REST) Init(inConfig *RestConfig, kafkaConfig kafka.Config, user *user_c
 	if user == nil {
 		return fmt.Errorf("no user service provided")
 	}
+
+	r.WebSocketClients = make(map[uint32]*WebSocketClient)
 
 	r.UserService = user
 
@@ -76,8 +82,29 @@ func (r *REST) Start() error {
 		w.WriteHeader(http.StatusNotFound)
 	})
 	r.mux.Get("/status", r.HandleStatusRequest)
+	r.mux.Get("/ws", r.HandleWebSocket)
 
 	return http.ListenAndServe(fmt.Sprintf("%s:%d", r.Hostname, r.Port), r.mux)
+}
+
+func (r *REST) HandleWebSocket(w http.ResponseWriter, req *http.Request) {
+	log.Traceln("REST::HandleWebSocket")
+
+	newClient, err := NewWebSocketClient(w, req)
+	if err != nil {
+		log.Errorf("Failed to create new WebSocket client: %s", err.Error())
+		return
+	}
+
+	if newClient == nil {
+		log.Errorf("Failed to create new WebSocket client")
+		return
+	}
+
+	r.wscMutex.Lock()
+	r.PendingWebSocketClients = append(r.PendingWebSocketClients, newClient)
+	r.wscMutex.Unlock()
+	go newClient.Run()
 }
 
 func (r *REST) AddToAuthIgnoreList(uri string) {
