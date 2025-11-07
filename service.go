@@ -9,6 +9,7 @@ type Service struct {
 }
 
 func (s *Service) Init(r *REST) error {
+	log.Traceln("Service::Init")
 	s.restClients = make(map[string]*Client)
 
 	log.Infof("Initializing %d REST clients", len(AppConfig.Services))
@@ -25,6 +26,7 @@ func (s *Service) Init(r *REST) error {
 }
 
 func (s *Service) Start(r *REST) error {
+	log.Traceln("Service::Start")
 	for _, client := range s.restClients {
 		if err := client.Start(); err != nil {
 			log.Errorf("Failed to start REST client: %s", err.Error())

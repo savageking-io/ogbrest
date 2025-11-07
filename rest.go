@@ -37,6 +37,7 @@ type REST struct {
 }
 
 func (r *REST) Init(inConfig *RestConfig, kafkaConfig kafka.Config, user *user_client.Client) error {
+	log.Traceln("REST::Init")
 	if inConfig == nil {
 		return fmt.Errorf("no configuration")
 	}
@@ -77,6 +78,7 @@ func (r *REST) Init(inConfig *RestConfig, kafkaConfig kafka.Config, user *user_c
 }
 
 func (r *REST) Start() error {
+	log.Traceln("REST::Start")
 	r.mux.Get("/", func(w http.ResponseWriter, req *http.Request) {
 		// For default empty route return 404
 		w.WriteHeader(http.StatusNotFound)
@@ -178,6 +180,7 @@ func (r *REST) JWTMiddleware() func(http.Handler) http.Handler {
 }
 
 func (r *REST) HandleStatusRequest(w http.ResponseWriter, req *http.Request) {
+	log.Traceln("REST::HandleStatusRequest")
 	data := make(map[string]interface{})
 	data["code"] = 0
 	data["date"] = time.Now().String()
@@ -191,6 +194,7 @@ func (r *REST) HandleStatusRequest(w http.ResponseWriter, req *http.Request) {
 }
 
 func (r *REST) RegisterNewRoute(root, method, uri string, client *Client) error {
+	log.Traceln("REST::RegisterNewRoute")
 	fullUri := fmt.Sprintf("%s%s", sanitizeRoot(root), sanitizeUri(uri))
 
 	r.mux.MethodFunc(method, fullUri, func(w http.ResponseWriter, req *http.Request) {
@@ -262,6 +266,7 @@ func (r *REST) RegisterNewRoute(root, method, uri string, client *Client) error 
 }
 
 func (r *REST) httpRequestToProto(req *http.Request) *proto.RestApiRequest {
+	log.Tracef("REST::httpRequestToProto")
 	var headers []*proto.RestHeader
 	for k, v := range req.Header {
 		headers = append(headers, &proto.RestHeader{

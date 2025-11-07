@@ -30,6 +30,7 @@ type Client struct {
 }
 
 func (c *Client) Init(config *ServiceConfig, routeRegistrationHandler RegisterNewRouteHandler, addRouteToIgnoreListHandler AddRouteToIgnoreListHandler) error {
+	log.Traceln("Client::Init")
 	if config == nil {
 		return fmt.Errorf("no service configuration provided")
 	}
@@ -44,6 +45,7 @@ func (c *Client) Init(config *ServiceConfig, routeRegistrationHandler RegisterNe
 }
 
 func (c *Client) Start() error {
+	log.Traceln("Client::Start")
 	var err error
 	log.Infof("Connecing client [%s] to %s:%d", c.Label, c.Host, c.Port)
 	c.conn, err = grpc.NewClient(fmt.Sprintf("%s:%d", c.Host, c.Port), grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -67,6 +69,7 @@ func (c *Client) Start() error {
 
 func (c *Client) ScheduleRestart() {
 	// @TODO: Make wait time configurable
+	log.Traceln("Client::ScheduleRestart")
 	waitTime := time.Second * 3
 	log.Infof("Scheduling restart of client [%s] in %s", c.Label, waitTime.String())
 	go func() {
@@ -88,6 +91,7 @@ func (c *Client) ScheduleRestart() {
 }
 
 func (c *Client) authenticate() error {
+	log.Traceln("Client::authenticate")
 	if c.conn == nil {
 		return fmt.Errorf("connection is not initialized")
 	}
@@ -111,6 +115,7 @@ func (c *Client) authenticate() error {
 }
 
 func (c *Client) requestRestData() error {
+	log.Traceln("Client::requestRestData")
 	if c.conn == nil {
 		return fmt.Errorf("connection is not initialized")
 	}
@@ -148,6 +153,7 @@ func (c *Client) requestRestData() error {
 }
 
 func (c *Client) HandleRestRequest(request *proto.RestApiRequest) (*proto.RestApiResponse, error) {
+	log.Traceln("Client::HandleRestRequest")
 	if c.conn == nil {
 		return nil, fmt.Errorf("connection is not initialized")
 	}

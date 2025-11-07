@@ -3,7 +3,8 @@ module github.com/savageking-io/ogbrest/restlib
 go 1.23.4
 
 require (
-	github.com/savageking-io/ogbrest/proto v0.0.0-20250714120153-ea1979466793
+	github.com/savageking-io/ogbrest/proto v0.8.0
+	github.com/sirupsen/logrus v1.9.3
 	google.golang.org/grpc v1.73.0
 )
 

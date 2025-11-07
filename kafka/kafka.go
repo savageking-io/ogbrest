@@ -34,6 +34,21 @@ type RequestSchema struct {
 
 var eventPublisher = &Publisher{}
 
+func parseCompression(compression string) kafka.Compression {
+	switch strings.ToLower(compression) {
+	case "gzip":
+		return kafka.Gzip
+	case "snappy":
+		return kafka.Snappy
+	case "lz4":
+		return kafka.Lz4
+	case "zstd":
+		return kafka.Zstd
+	default:
+		return kafka.Snappy // reasonable default
+	}
+}
+
 func (p *Publisher) Init(cfg Config) error {
 	// Basic validation
 	if len(cfg.Brokers) == 0 || strings.TrimSpace(cfg.Topic) == "" {
@@ -43,19 +58,7 @@ func (p *Publisher) Init(cfg Config) error {
 	}
 
 	balance := &kafka.LeastBytes{}
-	var compression kafka.Compression
-	switch strings.ToLower(cfg.Compression) {
-	case "gzip":
-		compression = kafka.Gzip
-	case "snappy":
-		compression = kafka.Snappy
-	case "lz4":
-		compression = kafka.Lz4
-	case "zstd":
-		compression = kafka.Zstd
-	default:
-		compression = kafka.Snappy // reasonable default
-	}
+	compression := parseCompression(cfg.Compression)
 
 	acks := kafka.RequireAll
 	switch cfg.RequiredAcks {
@@ -95,6 +98,7 @@ func (p *Publisher) Publish(ctx context.Context, key, value []byte) error {
 	if !p.enabled {
 		return nil
 	}
+	log.Traceln("Kafka::Publisher::Publish")
 	msg := kafka.Message{
 		Key:   key,
 		Value: value,
@@ -113,6 +117,7 @@ func (p *Publisher) LogRequest(req *http.Request) {
 }
 
 func (p *Publisher) logRequestInternal(req *http.Request) {
+	log.Traceln("Kafka::Publisher::logRequestInternal")
 	r := &RequestSchema{
 		Method:  req.Method,
 		Path:    req.RequestURI,

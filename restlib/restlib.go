@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	restproto "github.com/savageking-io/ogbrest/proto"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"net"
 )
@@ -42,6 +43,7 @@ type RestInterServiceServer struct {
 
 // NewRestInterServiceServer will create new RestInterServiceServer with the provided confiration
 func NewRestInterServiceServer(config RestInterServiceConfig) *RestInterServiceServer {
+	log.Traceln("RestLib::NewRestInterServiceServer")
 	return &RestInterServiceServer{
 		config: config,
 	}
@@ -57,6 +59,7 @@ func (s *RestInterServiceServer) IsAuthenticated() bool {
 }
 
 func (s *RestInterServiceServer) Init() error {
+	log.Traceln("RestLib::Init")
 	s.RequestChan = make(chan *restproto.RestApiRequest, 100)
 	s.handlers = make(map[string]RestRequestHandler)
 	return nil
@@ -64,6 +67,7 @@ func (s *RestInterServiceServer) Init() error {
 
 // Start will create TCP Listener and enable gRPC server
 func (s *RestInterServiceServer) Start() error {
+	log.Traceln("RestLib::Start")
 	lis, err := net.Listen("tcp", fmt.Sprintf("%s:%d", s.config.Hostname, s.config.Port))
 	if err != nil {
 		return err
@@ -78,6 +82,7 @@ func (s *RestInterServiceServer) Start() error {
 
 // RegisterHandler will add new URL to the rest service
 func (s *RestInterServiceServer) RegisterHandler(uri, method string, handler RestRequestHandler, skipAuth bool) error {
+	log.Traceln("RestLib::RegisterHandler")
 	if s.handlers == nil {
 		return fmt.Errorf("handlers are not initialized")
 	}
@@ -99,6 +104,7 @@ func (s *RestInterServiceServer) IsHandlerRegistered(uri, method string) bool {
 }
 
 func (s *RestInterServiceServer) UnregisterHandler(uri, method string) error {
+	log.Traceln("RestLib::UnregisterHandler")
 	requestDefinition := fmt.Sprintf("%s:%s", method, uri)
 	if _, ok := s.handlers[requestDefinition]; !ok {
 		return fmt.Errorf("handler for %s is not registered", requestDefinition)
@@ -108,6 +114,7 @@ func (s *RestInterServiceServer) UnregisterHandler(uri, method string) error {
 }
 
 func (s *RestInterServiceServer) UnregisterAllHandlers() error {
+	log.Traceln("RestLib::UnregisterAllHandlers")
 	s.handlers = make(map[string]RestRequestHandler)
 	return nil
 }
@@ -123,6 +130,7 @@ func (s *RestInterServiceServer) GetRegisteredHandlerKeys() []string {
 }
 
 func (s *RestInterServiceServer) AuthInterService(ctx context.Context, in *restproto.AuthenticateServiceRequest) (*restproto.AuthenticateServiceResponse, error) {
+	log.Traceln("RestLib::AuthInterService")
 	if s.config.Token == "" {
 		return nil, fmt.Errorf("token is not set")
 	}
@@ -139,6 +147,7 @@ func (s *RestInterServiceServer) AuthInterService(ctx context.Context, in *restp
 }
 
 func (s *RestInterServiceServer) RequestRestData(ctx context.Context, in *restproto.RestDataRequest) (*restproto.RestDataDefinition, error) {
+	log.Traceln("RestLib::RequestRestData")
 	if s.config.Token == "" {
 		return nil, fmt.Errorf("token is not set")
 	}
@@ -168,6 +177,7 @@ func (s *RestInterServiceServer) RequestRestData(ctx context.Context, in *restpr
 }
 
 func (s *RestInterServiceServer) NewRestRequest(ctx context.Context, in *restproto.RestApiRequest) (*restproto.RestApiResponse, error) {
+	log.Traceln("RestLib::NewRestRequest")
 	if s.config.Token == "" {
 		return nil, fmt.Errorf("token is not set")
 	}
