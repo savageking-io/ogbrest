@@ -78,7 +78,7 @@ func Serve(c *cli.Context) error {
 	userClient := user_client.NewClient(AppConfig.UserClient.Hostname, AppConfig.UserClient.Port)
 	go func() {
 		if err := userClient.Run(); err != nil {
-			// @TODO: This is a critical issue - we should find a waay to handle it
+			// @TODO: This is a critical issue - we should find a way to handle it
 			log.Errorf("User client failed to start: %s", err.Error())
 		}
 	}()

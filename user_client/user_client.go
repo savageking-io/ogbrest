@@ -28,6 +28,7 @@ func NewUserClient() *UserClient {
 }
 
 func (c *UserClient) Init(hostname string, port uint16) error {
+	log.Traceln("UserClient::Init")
 	if hostname == "" {
 		return fmt.Errorf("hostname is not provided")
 	}
@@ -41,6 +42,7 @@ func (c *UserClient) Init(hostname string, port uint16) error {
 }
 
 func (c *UserClient) Run() error {
+	log.Traceln("UserClient::Run")
 	log.Infof("Connecting to user microservice at %s:%d", c.hostname, c.port)
 	var err error
 
@@ -71,6 +73,7 @@ func (c *UserClient) Run() error {
 }
 
 func (c *UserClient) Stop() error {
+	log.Traceln("UserClient::Stop")
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -87,6 +90,7 @@ func (c *UserClient) Stop() error {
 }
 
 func (c *UserClient) ValidateToken(ctx context.Context, token string) (bool, int32, error) {
+	log.Traceln("UserClient::ValidateToken")
 	if c.conn == nil {
 		return false, -1, fmt.Errorf("connection is not initialized")
 	}
@@ -120,6 +124,7 @@ func (c *UserClient) ValidateToken(ctx context.Context, token string) (bool, int
 // Ping will send a ping message to user microservice
 // If service is shutdown it will initiate restart
 func (c *UserClient) Ping() error {
+	log.Traceln("UserClient::Ping")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 	resp, err := c.client.Ping(ctx, &proto.PingMessage{SentAt: timestamppb.New(time.Now())})
